@@ -1,0 +1,70 @@
+# Environment Variables (CRITICAL - contains secrets)
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Runtime Temporary Directories (cloned repositories)
+temp-repos/
+/temp-repos/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE/Editor Configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+.vim/
+
+# OS-specific Files
+.AppleDouble
+.LSOverride
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+*.lnk
+
+# Build/Compilation Output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Test Coverage
+coverage/
+.nyc_output/
+
+# Node.js / Bun Development
+.node_modules.cache/
+.bun/
+
+# IDE Temporary Files
+*.iml
+.gradle/
+.classpath
+.project
+
+# yarn (if used)
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# pnpm (if used)
+.pnpm-debug.log
+
+# Any locally generated files
+socket.yml
+*.sock
+.tmp/
