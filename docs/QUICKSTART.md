@@ -1,4 +1,6 @@
-# Getting Started with Repository Sync Orchestrator
+# Quick Start Guide
+
+Get up and running in 5 minutes with Repository Sync Orchestrator.
 
 ## 5-Minute Setup
 
@@ -74,12 +76,12 @@ bun run start
 [SUCCESS] 2025-01-10T15:30:36Z - Repository completed: kzg-old-project (33.2s)
 
 ═══════════════════════════════════════════════════════════
-                    SUMMARY REPORT
+                     SUMMARY REPORT
 ═══════════════════════════════════════════════════════════
-  📊  Total Archived Repositories: 5
-  ✅  Successfully Processed: 5
-  ❌  Failed: 0
-  ⏱️   Total Duration: 2m 14s
+   📊  Total Archived Repositories: 5
+   ✅  Successfully Processed: 5
+   ❌  Failed: 0
+   ⏱️   Total Duration: 2m 14s
 ═══════════════════════════════════════════════════════════
 ```
 
@@ -188,11 +190,15 @@ Check `logs/` directory - new file created each run with timestamp.
 
 ## Need Help?
 
-1. **Check the logs**: `logs/repo-sync-*.log` has all details
-2. **Run in debug mode**: `LOG_LEVEL=debug bun run start`
-3. **Try dry-run first**: `bun run start:dry`
-4. **Verify config**: `bun run check-config`
+- **Full Usage Guide**: See [Usage Reference](USAGE.md) for all commands and configuration
+- **Troubleshooting**: See [Troubleshooting Guide](TROUBLESHOOTING.md) for detailed solutions
+- **Architecture Details**: See [Architecture Guide](ARCHITECTURE.md) for system design
+- **Development Setup**: See [Development Guide](DEVELOPMENT.md) for contributing
+- **Check the logs**: `logs/repo-sync-*.log` has all details
+- **Run in debug mode**: `LOG_LEVEL=debug bun run start`
+- **Try dry-run first**: `bun run start:dry`
+- **Verify config**: `bun run check-config`
 
 ---
 
-**Questions?** Check ARCHITECTURE.md for technical details or README.md for full documentation.
+**Quick Links**: [📖 Back to README](../README.md) | [⚙️ Usage Reference](USAGE.md) | [🏗️ Architecture](ARCHITECTURE.md)

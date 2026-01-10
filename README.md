@@ -16,511 +16,103 @@ A comprehensive TypeScript automation tool that synchronizes archived repositori
 
 ## Quick Start
 
-### 1. Setup
-
 ```bash
-# Copy and configure environment variables
+# 1. Copy and configure environment variables
 cp .env.example .env
 
-# Edit .env with your credentials
-# - GITHUB_TOKEN: Your GitHub Personal Access Token
-# - SOCKET_API_TOKEN: Your Socket.dev API token
-# - GITHUB_ORG: Your organization name (default: KillzoneGaming)
-```
+# 2. Edit .env with your GitHub and Socket.dev tokens
+# GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# SOCKET_API_TOKEN=sk_live_xxxxxxxxxxxx
+# GITHUB_ORG=YourOrganization
 
-### 2. Get Required Tokens
+# 3. Verify configuration
+bun run check-config
 
-**GitHub Personal Access Token:**
-1. Go to https://github.com/settings/tokens
-2. Click "Generate new token (classic)"
-3. Select **required scopes**:
-   - `repo` (full control of private repositories)
-   - `admin:repo_hook` (required for unarchiving repositories)
-   
-   **NOTE:** To unarchive repositories, you MUST enable `admin:repo_hook` scope. Without it, the script can only process non-archived repos.
-4. Copy the generated token to `GITHUB_TOKEN` in `.env`
-
-**Alternative (Recommended for security):**
-Use fine-grained personal access tokens instead:
-1. Go to https://github.com/settings/tokens?type=beta
-2. Create a new fine-grained token
-3. Select required permissions: **"Administration" (write)** on repositories
-4. This is more secure than classic tokens with broad scopes
-
-**Socket.dev API Token:**
-1. Visit https://socket.dev/account/settings
-2. Generate or copy your API token
-3. Add to `SOCKET_API_TOKEN` in `.env`
-
-### 3. Run the Script
-
-**Dry-run mode (preview without changes):**
-```bash
+# 4. Preview changes (dry-run mode)
 bun run start:dry
-```
 
-**Standard mode (process all archived repos):**
-```bash
+# 5. Execute
 bun run start
 ```
 
-**Check configuration:**
-```bash
-bun run check-config
-```
+## Documentation
 
-## Commands Reference
+Full documentation is organized in the `/docs` directory:
 
-### NPM/Bun Scripts
+- **[📖 Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes
+- **[⚙️ Usage Reference](docs/USAGE.md)** - Commands, configuration, and CLI flags
+- **[🏗️ Architecture](docs/ARCHITECTURE.md)** - System design and technical deep-dive
+- **[🔧 Development Guide](docs/DEVELOPMENT.md)** - Setup, code management, and extensibility
+- **[❓ Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and debugging
+- **[📋 Build Summary](docs/BUILD.md)** - Implementation details and features
 
-| Command | Invocation | Description | Parameters | Example |
-|---------|-----------|-------------|-----------|---------|
-| **Start (Standard)** | `bun run start` | Process all archived repositories with full execution | None | `bun run start` |
-| **Start (Dry-Run)** | `bun run start:dry` | Preview changes without making modifications | None | `bun run start:dry` |
-| **Check Config** | `bun run check-config` | Validate configuration and environment variables | None | `bun run check-config` |
-| **Format Code** | `bun run fix` | Fix code formatting issues using ultracite | None | `bun run fix` |
-| **Lint** | `bun run lint` | Check code quality and style issues | None | `bun run lint` |
-| **CI Check** | `bun run ci` | Run Biome CI checks | None | `bun run ci` |
-| **TypeScript Check** | `bun run tsc` | Compile TypeScript without emitting files | None | `bun run tsc` |
+## Available Commands
 
-### CLI Flags
+| Command | Purpose |
+|---------|---------|
+| `bun run start` | Process all archived repositories |
+| `bun run start:dry` | Preview changes without making modifications |
+| `bun run check-config` | Validate configuration and environment variables |
+| `bun run fix` | Auto-format code |
+| `bun run lint` | Check code quality |
+| `bun run tsc` | Validate TypeScript compilation |
 
-| Flag | Type | Description | Usage | Example |
-|------|------|-------------|-------|---------|
-| `--dry-run` | Boolean | Run in preview mode without making changes | Use with `bun run start` or as script flag | `bun run start -- --dry-run` |
-| `--check-config` | Boolean | Validate configuration and exit | Use with `bun run start` or as script flag | `bun run start -- --check-config` |
+## Core Modules
 
-### Command Details
+- **GitHub Client** - Lists and verifies archived repositories
+- **Socket.dev Client** - Manages scan listing and deletion
+- **Git Operations** - Handles cloning, committing, and pushing
+- **Logger** - Structured timestamped logging
+- **Configuration** - Environment validation and management
 
-#### Execution Commands
+## Requirements
 
-**`bun run start`**
-- Executes full repository synchronization
-- Processes all archived repositories
-- Creates `socket.yml` files
-- Manages Socket.dev scans
-- Generates comprehensive logs
-- Creates git commits and pushes changes
-
-**`bun run start:dry`**
-- Equivalent to `bun run start -- --dry-run`
-- Shows what would be cloned
-- Simulates file creation
-- Displays git commands that would execute
-- Logs API operations without executing them
-- Does NOT make actual changes
-
-**`bun run start -- --check-config`**
-- Equivalent to `bun run check-config`
-- Validates all environment variables
-- Verifies token formats
-- Checks configuration completeness
-- Exits after validation (does not process repos)
-
-#### Development Commands
-
-**`bun run fix`**
-- Fixes code formatting issues
-- Uses ultracite formatter
-- Automatically corrects style violations
-- Should be run before committing code
-
-**`bun run lint`**
-- Checks code quality
-- Identifies style violations
-- Uses ultracite linter
-- Does not modify files
-
-**`bun run ci`**
-- Runs Biome CI checks
-- Comprehensive code quality checks
-- Used in CI/CD pipelines
-- Ensures code meets project standards
-
-**`bun run tsc`**
-- Validates TypeScript compilation
-- Checks for type errors
-- Does not emit compiled files
-- Useful for development validation
-
-## Configuration
-
-### Environment Variables (.env)
-
-| Variable | Required | Default | Description | Example |
-|----------|----------|---------|-------------|---------|
-| `GITHUB_TOKEN` | Yes | N/A | GitHub Personal Access Token | `ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
-| `GITHUB_ORG` | Yes | N/A | GitHub organization name | `KillzoneGaming` |
-| `SOCKET_API_TOKEN` | Yes | N/A | Socket.dev API authentication token | `sk_live_xxxxxxxxxxxx` |
-| `REPOS_BASE_PATH` | No | `./temp-repos` | Local directory for temporary repo clones | `./temp-repos` |
-| `DRY_RUN` | No | `false` | Enable dry-run mode | `true` or `false` |
-| `SOCKET_BASE_URL` | No | `https://api.socket.dev/v0` | Socket.dev API endpoint | `https://api.socket.dev/v0` |
-| `GITHUB_BASE_URL` | No | `https://api.github.com` | GitHub API endpoint | `https://api.github.com` |
-| `LOG_LEVEL` | No | `info` | Logging verbosity level | `debug`, `info`, `warn`, `error` |
-
-### Example .env File
-
-```env
-# Required
-GITHUB_TOKEN=ghp_your_token_here
-GITHUB_ORG=KillzoneGaming
-SOCKET_API_TOKEN=your_socket_token_here
-
-# Optional (uses defaults if not specified)
-REPOS_BASE_PATH=./temp-repos
-DRY_RUN=false
-LOG_LEVEL=info
-SOCKET_BASE_URL=https://api.socket.dev/v0
-GITHUB_BASE_URL=https://api.github.com
-```
+- Node.js/Bun 1.3.4+
+- GitHub Personal Access Token (with `repo` scope)
+- Socket.dev API Token
+- Git installed locally
 
 ## Directory Structure
 
 ```
 socket-scan/
-├── scripts/
-│   ├── repo-sync-orchestrator.ts      # Main entry point
-│   ├── github/
-│   │   └── client.ts                  # GitHub API client
-│   ├── socket/
-│   │   └── client.ts                  # Socket.dev API client
-│   ├── git/
-│   │   └── operations.ts              # Git command wrapper
-│   ├── types/
-│   │   └── index.ts                   # TypeScript interfaces
-│   └── utils/
-│       ├── logger.ts                  # Structured logging
-│       ├── config.ts                  # Configuration management
-│       ├── file-operations.ts         # socket.yml handler
-│       ├── helpers.ts                 # Utility functions
-│       └── constants.ts               # Constants & defaults
-├── logs/                              # Generated log files
+├── scripts/              # TypeScript source code
+├── docs/                 # Documentation
+├── logs/                 # Generated log files
 ├── package.json
 ├── tsconfig.json
 ├── biome.jsonc
+├── .env.example
 └── README.md
 ```
 
-## Execution Flow
-
-The script follows a systematic process to synchronize repositories:
-
-1. **Parse Arguments** - Extract CLI flags (`--dry-run`, `--check-config`)
-2. **Load Configuration** - Parse environment variables and validate tokens
-3. **Verify Authentication** - Test GitHub and Socket.dev API access
-4. **Verify Organization** - Confirm organization exists and is accessible
-5. **Fetch Repositories** - Get all archived repositories from the organization
-6. **Process Each Repository:**
-   - Clone repository to temporary directory
-   - Create/verify `socket.yml` configuration file:
-     ```yaml
-     version: 2
-     githubApp:
-       enabled: false
-     ```
-   - Stage and commit changes to git
-   - List Socket.dev scans for the repository
-   - Delete all identified scans from Socket.dev
-   - Push changes to main branch
-   - Clean up temporary directory
-7. **Generate Summary Report** - Display success/failure statistics
-8. **Save Logs** - Write detailed logs to file with timestamp
-
-## Output & Logging
-
-### Console Output Example
-
-```
-[INFO] 2025-01-10T15:30:00Z - Starting Repository Sync Orchestrator
-[INFO] 2025-01-10T15:30:01Z - Configuration loaded successfully
-[SUCCESS] 2025-01-10T15:30:02Z - Found 5 archived repositories
-[INFO] 2025-01-10T15:30:03Z - [1/5] Processing repository: kzg-archived-repo-1
-[DEBUG] 2025-01-10T15:30:04Z - Cloning repository...
-[SUCCESS] 2025-01-10T15:30:08Z - Repository cloned (4.2s)
-...
-═══════════════════════════════════════════════════════════
-                     SUMMARY REPORT
-═══════════════════════════════════════════════════════════
-   📊  Total Archived Repositories: 5
-   ✅  Successfully Processed: 5
-   ❌  Failed: 0
-   ⏱️   Total Duration: 2m 14s
-═══════════════════════════════════════════════════════════
-```
-
-### Log Files
-
-Detailed logs are automatically saved to: `logs/repo-sync-{timestamp}.log`
-
-**Log Contents:**
-- Complete operation timeline
-- Full error stack traces
-- API call details
-- Configuration summary
-- Timing information for each step
-- Detailed progress for each repository
-
-### Dry-Run Mode
-
-Use `bun run start:dry` or `bun run start -- --dry-run` to preview changes without modifications:
-
-**Dry-run behavior:**
-- Shows what would be cloned
-- Simulates file creation
-- Displays git commands that would execute
-- Logs Socket.dev API operations
-- Does NOT make actual changes to repositories
-- Safe for testing configuration
-
 ## Error Handling
 
-The script includes robust error handling for various failure scenarios:
+The script includes robust error handling with:
+- Automatic retry logic with exponential backoff
+- Graceful degradation (continues on individual repo failure)
+- Comprehensive error logging
+- Detailed troubleshooting information
 
-| Error Type | Strategy | Action | Outcome |
-|-----------|----------|--------|---------|
-| Network failures | Retry with exponential backoff (3 attempts) | Automatic retry | Skip repo if all retries fail |
-| Git conflicts | Graceful abort | Log error with details | Continue processing next repo |
-| Auth failures (GitHub/Socket) | Immediate stop | Clear error message | Exit with status code 1 |
-| API rate limits | Wait and retry | Exponential backoff delays | Resume after limit resets |
-| File system errors | Log and continue | Log full error | Skip problematic step, continue |
-| Missing required tokens | Validation on startup | Exit with guidance | Inform user of missing config |
-
-## Core Modules
-
-### GitHubClient (`scripts/github/client.ts`)
-**Responsibilities:**
-- Lists archived repositories in the organization
-- Verifies GitHub authentication and token validity
-- Confirms organization exists and is accessible
-- Handles GitHub API pagination
-- Manages API rate limiting
-
-**Key Methods:**
-- `verifyAuth()` - Validates GitHub token
-- `verifyOrganization()` - Confirms org access
-- `listArchivedRepositories()` - Fetch all archived repos
-
-### SocketClient (`scripts/socket/client.ts`)
-**Responsibilities:**
-- Lists scans for a specific repository
-- Deletes scans by ID
-- Supports batch deletion operations
-- Verifies Socket.dev authentication
-- Includes retry logic for transient failures
-
-**Key Methods:**
-- `verifyAuth()` - Validates Socket API token
-- `listScans(repoId)` - Get scans for repository
-- `deleteScan(scanId)` - Delete specific scan
-
-### GitOperations (`scripts/git/operations.ts`)
-**Responsibilities:**
-- Clones repositories using system `git` commands
-- Stages files for commit
-- Creates commits with custom messages
-- Pushes to main branch with retry logic
-- Retrieves branch information
-
-**Key Methods:**
-- `clone(repoUrl, path)` - Clone repository
-- `stageFiles(path)` - Stage changes
-- `commit(path, message)` - Create commit
-- `push(path)` - Push to remote
-
-### Logger (`scripts/utils/logger.ts`)
-**Responsibilities:**
-- Structured timestamped logging
-- Multiple log levels (debug, info, warn, error, success)
-- Color-coded console output
-- File-based detailed logging
-- Step timing and progress tracking
-
-**Log Levels:**
-- `debug` - Detailed technical information
-- `info` - General informational messages
-- `warn` - Warning messages
-- `error` - Error messages
-- `success` - Success confirmation messages
+See [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for common issues and solutions.
 
 ## Development
-
-### Setup Development Environment
 
 ```bash
 # Install dependencies
 bun install
 
-# Verify TypeScript compilation
-bun run tsc
-
-# Check code quality
-bun run lint
-```
-
-### Code Management
-
-| Task | Command | Purpose |
-|------|---------|---------|
-| Format code | `bun run fix` | Fix code style and formatting issues |
-| Lint code | `bun run lint` | Check for code quality violations |
-| Type check | `bun run tsc` | Validate TypeScript compilation |
-| CI checks | `bun run ci` | Run Biome CI checks |
-
-### Add Dependencies
-
-```bash
-bun add <package-name>
-```
-
-### Before Committing
-
-```bash
-# 1. Check types
-bun run tsc
-
-# 2. Fix formatting
+# Format code
 bun run fix
 
-# 3. Verify linting
+# Lint code
 bun run lint
 
-# 4. Test with dry-run
-bun run start:dry
+# Type check
+bun run tsc
 ```
 
-## Reusability
-
-This script is designed to be fully reusable for similar tasks:
-
-- **Modular Architecture** - Each component (GitHub, Socket, Git, Logger) is independent
-- **Configuration-Driven** - Behavior controlled via environment variables
-- **Type-Safe** - Full TypeScript strict mode compliance
-- **Well-Documented** - Clear code with comprehensive comments
-- **Extensible** - Easy to add new API clients or workflows
-
-## Troubleshooting
-
-### Configuration Issues
-
-**Problem: "Configuration is invalid"**
-```bash
-# Solution: Verify your configuration
-bun run check-config
-```
-- Ensure all required environment variables are set
-- Check for extra whitespace in token values
-- Verify `.env` file exists and is readable
-
-### Authentication Failures
-
-**GitHub Token Issues:**
-- Verify token hasn't expired
-- Check token has `repo` scope (full control of private repositories)
-- Confirm token format starts with `ghp_`
-- Ensure no extra whitespace in `.env`
-- Verify token is in `GITHUB_TOKEN` variable
-
-**Socket.dev Token Issues:**
-- Verify token from https://socket.dev/account/settings
-- Check token is still active and not revoked
-- Confirm API permissions are enabled
-- Test token format and validity
-
-### Temporary Directory Already Exists
-
-**Problem: "fatal: destination path './temp-repos/repo-name' already exists and is not an empty directory"**
-
-This happens when a previous run crashed before cleanup could remove the temp directory.
-
-**Solutions:**
-1. **Manual cleanup** (quickest):
-   ```bash
-   rm -rf ./temp-repos
-   ```
-
-2. **Automatic recovery** (will be implemented):
-   The script should automatically remove existing directories before cloning. This is being fixed to prevent this error in future runs.
-
-### No Repositories Found
-
-| Issue | Check | Solution |
-|-------|-------|----------|
-| No archived repos listed | Organization name | Verify `GITHUB_ORG` matches exactly |
-| Access denied | Organization membership | Confirm you have access to the org |
-| No repos exist | Repository state | Ensure there are archived repositories |
-
-**Debug:**
-```bash
-LOG_LEVEL=debug bun run start:dry
-```
-
-### Push Failures on Archived Repositories
-
-**Problem: "ERROR: This repository was archived so it is read-only"**
-
-This error occurs because GitHub prevents writes to archived repositories. You have two options:
-
-**Option 1: Unarchive Before Processing (Recommended)**
-The script currently processes archived repos but cannot push changes to them. You need to:
-1. Manually unarchive the repository on GitHub (Settings → Danger Zone → Unarchive this repository)
-2. Run the script to process the repository
-3. Manually rearchive when done
-
-**Option 2: Automate Unarchive/Rearchive (Future Enhancement)**
-The script will be updated to automatically:
-1. Unarchive repository before processing
-2. Add socket.yml and commit changes
-3. Rearchive repository after push completes
-
-To enable this, ensure your GitHub token has the `admin:repo_hook` scope or use a fine-grained token with "Administration" write permissions.
-
-**Generic Push Failure Debugging:**
-- Verify git is properly configured:
-   ```bash
-   git config --global user.name "Your Name"
-   git config --global user.email "your@email.com"
-   ```
-- Check write access to repositories
-- Verify no branch protection rules block commits to main
-- Ensure GitHub token has correct scopes (`repo` and `admin:repo_hook`)
-
-### Socket.dev API Errors
-
-**Problem: "Socket API error 404" or scan listing fails**
-
-The script logs "API route not found" when trying to list or delete scans. This can happen for several reasons:
-
-1. **Incorrect API Endpoint**: The `/api/v0/scans` endpoint may not exist or may require a different format
-2. **Organization Not Registered**: Your organization may not be properly registered with Socket.dev
-3. **Invalid API Token**: Verify `SOCKET_API_TOKEN` is correct and not expired
-4. **Rate Limits**: Check if rate limits have been exceeded
-
-**Troubleshooting Steps:**
-1. Verify token: `SOCKET_API_TOKEN` should start with `sk_`
-2. Test Socket.dev API directly: `curl -H "Authorization: Bearer $SOCKET_API_TOKEN" https://api.socket.dev/v0/scans`
-3. Check organization settings at https://socket.dev/account/settings
-4. Confirm your organization is properly onboarded with Socket.dev
-5. Review Socket.dev documentation for correct API usage
-
-**Current Behavior:**
-The script continues processing even if Socket.dev operations fail. Scan deletion is non-critical to the main workflow.
-
-### Debugging Commands
-
-| Command | Purpose |
-|---------|---------|
-| `LOG_LEVEL=debug bun run start:dry` | Preview with verbose logging |
-| `bun run check-config` | Validate configuration |
-| `bun run tsc` | Check for TypeScript errors |
-| `cat logs/repo-sync-*.log` | Review detailed execution logs |
-
-### Getting Help
-
-1. Check detailed logs: `ls -la logs/`
-2. Review recent log file: `cat logs/repo-sync-latest.log`
-3. Run configuration check: `bun run check-config`
-4. Test with dry-run: `bun run start:dry`
-5. Enable debug logging: `LOG_LEVEL=debug bun run start:dry`
+See [Development Guide](docs/DEVELOPMENT.md) for more details.
 
 ## Disclaimer
 
@@ -536,4 +128,4 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM THE USE OR OTHER IN THE SOFTWARE.
