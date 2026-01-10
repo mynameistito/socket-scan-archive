@@ -2,6 +2,7 @@
 
 import { GitOperations } from "./git/operations";
 import { GitHubClient } from "./github/client";
+import { SocketCLIAuth } from "./socket/cli-auth";
 import { SocketCLIClient } from "./socket/cli-client";
 import type {
   DeletionRecord,
@@ -26,9 +27,10 @@ class RepositorySyncOrchestrator {
   private logger = createLogger("info");
   private gitHub!: GitHubClient;
   private socketCLI!: SocketCLIClient;
+  private socketAuth!: SocketCLIAuth;
   private config!: ReturnType<typeof loadConfig>;
   private readonly startTime = new Date();
-  private deletionRecords: DeletionRecord[] = [];
+  private readonly deletionRecords: DeletionRecord[] = [];
 
   async run(): Promise<void> {
     try {
@@ -70,6 +72,9 @@ class RepositorySyncOrchestrator {
         this.logger
       );
 
+      this.logger.debug("Initializing Socket CLI auth...");
+      this.socketAuth = new SocketCLIAuth(this.logger);
+
       // Verify authentication
       this.logger.debug("Verifying authentication...");
       const githubAuthOk = await this.gitHub.verifyAuth();
@@ -78,7 +83,15 @@ class RepositorySyncOrchestrator {
         process.exit(1);
       }
 
-      this.logger.debug("Socket CLI client initialized");
+      // Login to Socket.dev
+      this.logger.debug("Logging in to Socket.dev...");
+      const socketLoginOk = await this.socketAuth.login(
+        this.config.socketApiToken
+      );
+      if (!socketLoginOk) {
+        this.logger.error("Socket.dev login failed");
+        process.exit(1);
+      }
 
       // Verify organization exists
       const orgOk = await this.gitHub.verifyOrganization();
@@ -136,11 +149,25 @@ class RepositorySyncOrchestrator {
 
       // Exit with appropriate code
       const allSuccess = results.every((r) => r.success);
-      process.exit(allSuccess ? 0 : 1);
+      const exitCode = allSuccess ? 0 : 1;
+      this.cleanup();
+      process.exit(exitCode);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error("Fatal error in orchestrator", err);
+      this.cleanup();
       process.exit(1);
+    }
+  }
+
+  /**
+   * Cleanup Socket.dev authentication
+   * @private
+   */
+  private cleanup(): void {
+    const logoutSuccess = this.socketAuth.logout();
+    if (!logoutSuccess) {
+      this.logger.error("Socket.dev logout failed");
     }
   }
 
@@ -159,7 +186,7 @@ class RepositorySyncOrchestrator {
       await this.executeStageStep(tempPath, steps);
       await this.executeCommitStep(tempPath, steps);
       await this.executeDeleteRepositoryStep(repo, steps);
-      await this.executePushStep(tempPath, steps);
+      await this.executePushStep(tempPath, repo.archived, steps);
 
       return {
         repoName: repo.name,
@@ -389,11 +416,27 @@ class RepositorySyncOrchestrator {
 
   private async executePushStep(
     tempPath: string,
+    isArchived: boolean,
     steps: StepResult[]
   ): Promise<void> {
     const pushStart = Date.now();
     this.logger.startStep("Push to main");
     try {
+      // Skip push for archived repositories (read-only)
+      if (isArchived) {
+        this.logger.warn(
+          "Skipping push: repository is archived (read-only on GitHub)"
+        );
+        steps.push({
+          name: "Push",
+          success: true,
+          message:
+            "Skipped: Repository is archived (read-only). Socket.dev deletion was processed.",
+          duration: Date.now() - pushStart,
+        });
+        return;
+      }
+
       const git = new GitOperations(tempPath, this.logger, this.config.dryRun);
       await git.push(CONSTANTS.DEFAULT_MAIN_BRANCH);
       this.logger.endStep(true, "Pushed to origin/main");

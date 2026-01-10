@@ -1,5 +1,5 @@
-import type { Logger } from "../utils/logger";
 import { CONSTANTS } from "../utils/constants";
+import type { Logger } from "../utils/logger";
 
 /**
  * Socket CLI operation result
@@ -49,6 +49,7 @@ export class SocketCLIClient {
       const result = await this.executeSocketCommand([
         "repository",
         "del",
+        "--org",
         orgSlug,
         repoName,
       ]);
