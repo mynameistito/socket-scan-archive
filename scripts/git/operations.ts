@@ -18,6 +18,88 @@ export class GitOperations {
   }
 
   /**
+   * Configure git user for this repository using global user settings
+   * Required before making commits
+   */
+  async configureUser(): Promise<void> {
+    if (this.dryRun) {
+      this.logger.debug(
+        "[DRY-RUN] Would configure git user from global config"
+      );
+      return;
+    }
+
+    this.logger.debug("Configuring git user from global config");
+
+    try {
+      // Get global user.name
+      const nameProc = Bun.spawn(["git", "config", "--global", "user.name"], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      const nameExitCode = await nameProc.exited;
+      const globalName =
+        nameExitCode === 0
+          ? (await new Response(nameProc.stdout).text()).trim()
+          : null;
+
+      // Get global user.email
+      const emailProc = Bun.spawn(["git", "config", "--global", "user.email"], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      const emailExitCode = await emailProc.exited;
+      const globalEmail =
+        emailExitCode === 0
+          ? (await new Response(emailProc.stdout).text()).trim()
+          : null;
+
+      const isMissingName = !globalName;
+      const isMissingEmail = !globalEmail;
+      if (isMissingName || isMissingEmail) {
+        throw new Error(
+          "Git user.name and/or user.email not configured globally. Please run: git config --global user.name 'Your Name' && git config --global user.email 'your@email.com'"
+        );
+      }
+
+      // Set local repo config to use global values
+      const setNameProc = Bun.spawn(
+        ["git", "config", "user.name", globalName],
+        {
+          cwd: this.workingDir,
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
+
+      const setNameExitCode = await setNameProc.exited;
+      if (setNameExitCode !== 0) {
+        const stderr = await new Response(setNameProc.stderr).text();
+        throw new Error(`Failed to set local git user.name: ${stderr}`);
+      }
+
+      const setEmailProc = Bun.spawn(
+        ["git", "config", "user.email", globalEmail],
+        {
+          cwd: this.workingDir,
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
+
+      const setEmailExitCode = await setEmailProc.exited;
+      if (setEmailExitCode !== 0) {
+        const stderr = await new Response(setEmailProc.stderr).text();
+        throw new Error(`Failed to set local git user.email: ${stderr}`);
+      }
+
+      this.logger.debug(`Git user configured: ${globalName} <${globalEmail}>`);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("Configure user failed", err);
+      throw err;
+    }
+  }
+
+  /**
    * Clone a repository to the target path
    * Automatically removes existing directory if it exists
    */
@@ -37,6 +119,8 @@ export class GitOperations {
       if (await dir.exists()) {
         this.logger.debug(`Removing existing directory: ${targetPath}`);
         await removeDirectory(targetPath);
+        // Wait a moment after removal to ensure filesystem is consistent
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -57,7 +141,9 @@ export class GitOperations {
       const exitCode = await proc.exited;
       if (exitCode !== 0) {
         const stderr = await new Response(proc.stderr).text();
-        throw new Error(`Git clone failed: ${stderr}`);
+        const stdout = await new Response(proc.stdout).text();
+        const output = stderr || stdout;
+        throw new Error(`Git clone failed: ${output}`);
       }
 
       this.logger.debug(`Successfully cloned to ${targetPath}`);
@@ -121,15 +207,19 @@ export class GitOperations {
       const exitCode = await proc.exited;
       if (exitCode !== 0) {
         const stderr = await new Response(proc.stderr).text();
+        const stdout = await new Response(proc.stdout).text();
+        const output = stderr || stdout;
         // Check if nothing to commit (not an error)
         if (
-          stderr.includes("nothing to commit") ||
-          stderr.includes("no changes added")
+          output.includes("nothing to commit") ||
+          output.includes("no changes added")
         ) {
-          this.logger.warn("Nothing to commit - files already staged");
+          this.logger.warn(
+            "Nothing to commit - socket.yml already in repository"
+          );
           return;
         }
-        throw new Error(`Git commit failed: ${stderr}`);
+        throw new Error(`Git commit failed: ${output}`);
       }
 
       const stdout = await new Response(proc.stdout).text();

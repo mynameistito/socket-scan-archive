@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { rmSync, existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 
 const TEMP_REPOS_PATH = "./temp-repos";
 

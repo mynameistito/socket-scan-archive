@@ -66,6 +66,23 @@ export class SocketCLIClient {
       }
 
       const errorMsg = result.stderr || result.stdout || "Unknown error";
+
+      // Check if repository was not found (404) - treat as success since end state is achieved
+      if (
+        errorMsg.includes("Repository not found") ||
+        errorMsg.includes("404") ||
+        errorMsg.includes("Resource not found")
+      ) {
+        this.logger.info(
+          `⏭️ Repository ${repoName} not found (already deleted or doesn't exist) - skipping`
+        );
+        return {
+          success: true,
+          message: `Repository ${repoName} was not found (already deleted or doesn't exist)`,
+          repoName,
+        };
+      }
+
       this.logger.warn(
         `⚠️ Failed to delete repository ${repoName}: ${errorMsg}`
       );

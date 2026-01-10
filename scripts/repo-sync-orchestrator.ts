@@ -197,12 +197,22 @@ class RepositorySyncOrchestrator {
     try {
       tempPath = `${this.config.reposBasePath}/${repo.name}`;
 
+      // Unarchive repository first (only if archived)
+      if (repo.archived) {
+        await this.executeUnarchiveStep(repo, steps);
+      }
+
       await this.executeCloneStep(repo, tempPath, steps);
       await this.executeFileStep(tempPath, steps);
       await this.executeStageStep(tempPath, steps);
       await this.executeCommitStep(tempPath, steps);
       await this.executeDeleteRepositoryStep(repo, steps);
-      await this.executePushStep(tempPath, repo.archived, steps);
+      await this.executePushStep(tempPath, steps);
+
+      // Rearchive repository after successful push (only if was originally archived)
+      if (repo.archived) {
+        await this.executeRearchiveStep(repo, steps);
+      }
 
       return {
         repoName: repo.name,
@@ -237,6 +247,49 @@ class RepositorySyncOrchestrator {
           );
         }
       }
+    }
+  }
+
+  private async executeUnarchiveStep(
+    repo: GitHubRepository,
+    steps: StepResult[]
+  ): Promise<void> {
+    const unarchiveStart = Date.now();
+    this.logger.startStep("Unarchive Repository");
+    try {
+      if (this.config.dryRun) {
+        this.logger.debug(`[DRY-RUN] Would unarchive: ${repo.name}`);
+        this.logger.endStep(true, "Repository would be unarchived");
+        steps.push({
+          name: "Unarchive",
+          success: true,
+          message: "Repository would be unarchived (dry-run)",
+          duration: Date.now() - unarchiveStart,
+        });
+        return;
+      }
+
+      const unarchived = await this.gitHub.unarchiveRepository(repo.name);
+      if (!unarchived) {
+        throw new Error("Failed to unarchive repository");
+      }
+
+      this.logger.endStep(true, "Repository unarchived");
+      steps.push({
+        name: "Unarchive",
+        success: true,
+        message: "Repository unarchived successfully",
+        duration: Date.now() - unarchiveStart,
+      });
+    } catch (error) {
+      this.logger.endStep(false, "Unarchive failed");
+      steps.push({
+        name: "Unarchive",
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+        duration: Date.now() - unarchiveStart,
+      });
+      throw error;
     }
   }
 
@@ -346,6 +399,8 @@ class RepositorySyncOrchestrator {
     this.logger.startStep("Commit");
     try {
       const git = new GitOperations(tempPath, this.logger, this.config.dryRun);
+      // Configure git user before committing
+      await git.configureUser();
       await git.commit(CONSTANTS.COMMIT_MESSAGE);
       this.logger.endStep(true, "Committed");
       steps.push({
@@ -432,27 +487,11 @@ class RepositorySyncOrchestrator {
 
   private async executePushStep(
     tempPath: string,
-    isArchived: boolean,
     steps: StepResult[]
   ): Promise<void> {
     const pushStart = Date.now();
     this.logger.startStep("Push to main");
     try {
-      // Skip push for archived repositories (read-only)
-      if (isArchived) {
-        this.logger.warn(
-          "Skipping push: repository is archived (read-only on GitHub)"
-        );
-        steps.push({
-          name: "Push",
-          success: true,
-          message:
-            "Skipped: Repository is archived (read-only). Socket.dev deletion was processed.",
-          duration: Date.now() - pushStart,
-        });
-        return;
-      }
-
       const git = new GitOperations(tempPath, this.logger, this.config.dryRun);
       await git.push(CONSTANTS.DEFAULT_MAIN_BRANCH);
       this.logger.endStep(true, "Pushed to origin/main");
@@ -471,6 +510,60 @@ class RepositorySyncOrchestrator {
         duration: Date.now() - pushStart,
       });
       throw error;
+    }
+  }
+
+  private async executeRearchiveStep(
+    repo: GitHubRepository,
+    steps: StepResult[]
+  ): Promise<void> {
+    const rearchiveStart = Date.now();
+    this.logger.startStep("Rearchive Repository");
+    try {
+      if (this.config.dryRun) {
+        this.logger.debug(`[DRY-RUN] Would rearchive: ${repo.name}`);
+        this.logger.endStep(true, "Repository would be rearchived");
+        steps.push({
+          name: "Rearchive",
+          success: true,
+          message: "Repository would be rearchived (dry-run)",
+          duration: Date.now() - rearchiveStart,
+        });
+        return;
+      }
+
+      const rearchived = await this.gitHub.rearchiveRepository(repo.name);
+      if (!rearchived) {
+        this.logger.warn(
+          "Failed to rearchive repository (non-blocking - changes were successfully pushed)"
+        );
+        steps.push({
+          name: "Rearchive",
+          success: false,
+          message:
+            "Failed to rearchive (non-blocking). Check token permissions.",
+          duration: Date.now() - rearchiveStart,
+        });
+        return;
+      }
+
+      this.logger.endStep(true, "Repository rearchived");
+      steps.push({
+        name: "Rearchive",
+        success: true,
+        message: "Repository rearchived successfully",
+        duration: Date.now() - rearchiveStart,
+      });
+    } catch (error) {
+      this.logger.warn(
+        "Exception during rearchive (non-blocking - changes were successfully pushed)"
+      );
+      steps.push({
+        name: "Rearchive",
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+        duration: Date.now() - rearchiveStart,
+      });
     }
   }
 
@@ -521,10 +614,68 @@ class RepositorySyncOrchestrator {
       }
     }
 
+    // Print archival summary
+    this.logArchivalSummary(report);
+
     // Print deletion summary
     this.logDeletionSummary();
 
     console.log("\n");
+  }
+
+  private logArchivalSummary(report: SummaryReport): void {
+    const stats = this.collectArchivalStats(report);
+
+    if (stats.unarchiveSuccesses > 0 || stats.unarchiveFailures > 0) {
+      console.log("\n📦 Repository Archival Summary:");
+      console.log(`  ✅ Unarchived: ${stats.unarchiveSuccesses}`);
+      if (stats.unarchiveFailures > 0) {
+        console.log(`  ⚠️  Unarchive failed: ${stats.unarchiveFailures}`);
+      }
+      console.log(`  ✅ Rearchived: ${stats.rearchiveSuccesses}`);
+      if (stats.rearchiveFailures > 0) {
+        console.log(
+          `  ⚠️  Rearchive failed: ${stats.rearchiveFailures} (non-blocking)`
+        );
+      }
+    }
+  }
+
+  private collectArchivalStats(report: SummaryReport): {
+    unarchiveSuccesses: number;
+    unarchiveFailures: number;
+    rearchiveSuccesses: number;
+    rearchiveFailures: number;
+  } {
+    let unarchiveSuccesses = 0;
+    let unarchiveFailures = 0;
+    let rearchiveSuccesses = 0;
+    let rearchiveFailures = 0;
+
+    for (const result of report.results) {
+      for (const step of result.steps) {
+        if (step.name === "Unarchive") {
+          if (step.success) {
+            unarchiveSuccesses += 1;
+          } else {
+            unarchiveFailures += 1;
+          }
+        } else if (step.name === "Rearchive") {
+          if (step.success) {
+            rearchiveSuccesses += 1;
+          } else {
+            rearchiveFailures += 1;
+          }
+        }
+      }
+    }
+
+    return {
+      unarchiveSuccesses,
+      unarchiveFailures,
+      rearchiveSuccesses,
+      rearchiveFailures,
+    };
   }
 
   private logDeletionSummary(): void {
