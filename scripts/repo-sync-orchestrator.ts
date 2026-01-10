@@ -193,6 +193,7 @@ class RepositorySyncOrchestrator {
     const operationStartTime = new Date();
     const steps: StepResult[] = [];
     let tempPath = "";
+    let deletionFailed = false;
 
     try {
       tempPath = `${this.config.reposBasePath}/${repo.name}`;
@@ -206,10 +207,18 @@ class RepositorySyncOrchestrator {
       await this.executeFileStep(tempPath, steps);
       await this.executeStageStep(tempPath, steps);
       await this.executeCommitStep(tempPath, steps);
+
+      // Execute delete step - this may fail but should not throw
+      // (handles 404 and other non-blocking errors)
       await this.executeDeleteRepositoryStep(repo, steps);
+      deletionFailed = steps.some(
+        (s) => s.name === "Delete Repository" && !s.success
+      );
+
+      // Continue to push even if deletion failed
       await this.executePushStep(tempPath, steps);
 
-      // Rearchive repository after successful push (only if was originally archived)
+      // Rearchive repository after push (only if was originally archived)
       if (repo.archived) {
         await this.executeRearchiveStep(repo, steps);
       }
@@ -224,6 +233,15 @@ class RepositorySyncOrchestrator {
       };
     } catch (error) {
       const endTime = new Date();
+
+      // If deletion failed, try to rearchive the repository before returning error
+      if (deletionFailed && repo.archived) {
+        this.logger.info(
+          `Deletion failed for ${repo.name}. Attempting to rearchive...`
+        );
+        await this.executeRearchiveStep(repo, steps);
+      }
+
       return {
         repoName: repo.name,
         success: false,
@@ -482,6 +500,7 @@ class RepositorySyncOrchestrator {
         success: false,
         message: `Exception: ${message}`,
       });
+      // Do NOT rethrow - this step is non-blocking
     }
   }
 

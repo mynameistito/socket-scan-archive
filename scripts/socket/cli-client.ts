@@ -65,12 +65,22 @@ export class SocketCLIClient {
         };
       }
 
-      const errorMsg = result.stderr || result.stdout || "Unknown error";
+      // Combine stderr and stdout for error message
+      const fullErrorOutput = [result.stderr, result.stdout]
+        .filter((s) => s && s.length > 0)
+        .join("\n");
+      const errorMsg = fullErrorOutput || "Unknown error";
+
+      // Debug log the full error output
+      this.logger.debug(
+        `Socket CLI error output - exitCode: ${result.exitCode}, stderr: ${result.stderr}, stdout: ${result.stdout}`
+      );
 
       // Check if repository was not found (404) - treat as success since end state is achieved
       if (
         errorMsg.includes("Repository not found") ||
         errorMsg.includes("404") ||
+        errorMsg.includes("Not Found") ||
         errorMsg.includes("Resource not found")
       ) {
         this.logger.info(
@@ -121,6 +131,8 @@ export class SocketCLIClient {
             ...process.env,
             SOCKET_API_TOKEN: this.apiToken,
           },
+          stdout: "pipe",
+          stderr: "pipe",
           timeout: CONSTANTS.API_TIMEOUT_MS,
         });
 
