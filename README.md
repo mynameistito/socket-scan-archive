@@ -33,8 +33,19 @@ cp .env.example .env
 **GitHub Personal Access Token:**
 1. Go to https://github.com/settings/tokens
 2. Click "Generate new token (classic)"
-3. Select scopes: `repo` (full control of private repositories)
+3. Select **required scopes**:
+   - `repo` (full control of private repositories)
+   - `admin:repo_hook` (required for unarchiving repositories)
+   
+   **NOTE:** To unarchive repositories, you MUST enable `admin:repo_hook` scope. Without it, the script can only process non-archived repos.
 4. Copy the generated token to `GITHUB_TOKEN` in `.env`
+
+**Alternative (Recommended for security):**
+Use fine-grained personal access tokens instead:
+1. Go to https://github.com/settings/tokens?type=beta
+2. Create a new fine-grained token
+3. Select required permissions: **"Administration" (write)** on repositories
+4. This is more secure than classic tokens with broad scopes
 
 **Socket.dev API Token:**
 1. Visit https://socket.dev/account/settings
@@ -415,6 +426,21 @@ bun run check-config
 - Confirm API permissions are enabled
 - Test token format and validity
 
+### Temporary Directory Already Exists
+
+**Problem: "fatal: destination path './temp-repos/repo-name' already exists and is not an empty directory"**
+
+This happens when a previous run crashed before cleanup could remove the temp directory.
+
+**Solutions:**
+1. **Manual cleanup** (quickest):
+   ```bash
+   rm -rf ./temp-repos
+   ```
+
+2. **Automatic recovery** (will be implemented):
+   The script should automatically remove existing directories before cloning. This is being fixed to prevent this error in future runs.
+
 ### No Repositories Found
 
 | Issue | Check | Solution |
@@ -428,25 +454,56 @@ bun run check-config
 LOG_LEVEL=debug bun run start:dry
 ```
 
-### Push Failures
+### Push Failures on Archived Repositories
 
-**Problem: "Permission denied" or push fails**
+**Problem: "ERROR: This repository was archived so it is read-only"**
+
+This error occurs because GitHub prevents writes to archived repositories. You have two options:
+
+**Option 1: Unarchive Before Processing (Recommended)**
+The script currently processes archived repos but cannot push changes to them. You need to:
+1. Manually unarchive the repository on GitHub (Settings → Danger Zone → Unarchive this repository)
+2. Run the script to process the repository
+3. Manually rearchive when done
+
+**Option 2: Automate Unarchive/Rearchive (Future Enhancement)**
+The script will be updated to automatically:
+1. Unarchive repository before processing
+2. Add socket.yml and commit changes
+3. Rearchive repository after push completes
+
+To enable this, ensure your GitHub token has the `admin:repo_hook` scope or use a fine-grained token with "Administration" write permissions.
+
+**Generic Push Failure Debugging:**
 - Verify git is properly configured:
-  ```bash
-  git config --global user.name "Your Name"
-  git config --global user.email "your@email.com"
-  ```
+   ```bash
+   git config --global user.name "Your Name"
+   git config --global user.email "your@email.com"
+   ```
 - Check write access to repositories
 - Verify no branch protection rules block commits to main
-- Ensure GitHub token has `repo` scope
+- Ensure GitHub token has correct scopes (`repo` and `admin:repo_hook`)
 
 ### Socket.dev API Errors
 
-**Problem: "Socket API error" or scan deletion fails**
-- Verify `SOCKET_API_TOKEN` is correct
-- Check if rate limits have been exceeded
-- Verify Socket.dev API is accessible
-- Try again after a short delay
+**Problem: "Socket API error 404" or scan listing fails**
+
+The script logs "API route not found" when trying to list or delete scans. This can happen for several reasons:
+
+1. **Incorrect API Endpoint**: The `/api/v0/scans` endpoint may not exist or may require a different format
+2. **Organization Not Registered**: Your organization may not be properly registered with Socket.dev
+3. **Invalid API Token**: Verify `SOCKET_API_TOKEN` is correct and not expired
+4. **Rate Limits**: Check if rate limits have been exceeded
+
+**Troubleshooting Steps:**
+1. Verify token: `SOCKET_API_TOKEN` should start with `sk_`
+2. Test Socket.dev API directly: `curl -H "Authorization: Bearer $SOCKET_API_TOKEN" https://api.socket.dev/v0/scans`
+3. Check organization settings at https://socket.dev/account/settings
+4. Confirm your organization is properly onboarded with Socket.dev
+5. Review Socket.dev documentation for correct API usage
+
+**Current Behavior:**
+The script continues processing even if Socket.dev operations fail. Scan deletion is non-critical to the main workflow.
 
 ### Debugging Commands
 

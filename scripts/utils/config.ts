@@ -9,6 +9,7 @@ export function loadConfig(isDryRun: boolean): ScriptConfig {
   const githubToken = process.env.GITHUB_TOKEN?.trim();
   const socketApiToken = process.env.SOCKET_API_TOKEN?.trim();
   const githubOrg = process.env.GITHUB_ORG?.trim() || "KillzoneGaming";
+  const socketOrg = process.env.SOCKET_ORG?.trim() || "KillzoneGaming";
   const reposBasePath = process.env.REPOS_BASE_PATH?.trim() || "./temp-repos";
   const socketBaseUrl =
     process.env.SOCKET_BASE_URL?.trim() || "https://api.socket.dev/v0";
@@ -22,6 +23,7 @@ export function loadConfig(isDryRun: boolean): ScriptConfig {
     githubToken: githubToken || "",
     socketApiToken: socketApiToken || "",
     githubOrg,
+    socketOrg,
     reposBasePath,
     dryRun: isDryRun,
     socketBaseUrl,
@@ -33,6 +35,7 @@ export function loadConfig(isDryRun: boolean): ScriptConfig {
     githubToken: githubToken || "",
     socketApiToken: socketApiToken || "",
     githubOrg,
+    socketOrg,
     reposBasePath,
     dryRun: isDryRun,
     socketBaseUrl,
@@ -63,6 +66,13 @@ export function validateConfig(config: ScriptConfig): void {
     errors.push("GITHUB_ORG environment variable is required");
   } else if (!isValidOrgName(config.githubOrg)) {
     errors.push(`Invalid GITHUB_ORG format: ${config.githubOrg}`);
+  }
+
+  // Validate Socket org
+  if (!config.socketOrg) {
+    errors.push("SOCKET_ORG environment variable is required");
+  } else if (!isValidOrgName(config.socketOrg)) {
+    errors.push(`Invalid SOCKET_ORG format: ${config.socketOrg}`);
   }
 
   // Validate repos base path
@@ -97,7 +107,8 @@ export function validateConfig(config: ScriptConfig): void {
 
 export function logConfigSummary(config: ScriptConfig): void {
   console.log("\n📋 Configuration Summary:");
-  console.log(`   Organization: ${config.githubOrg}`);
+  console.log(`   GitHub Org: ${config.githubOrg}`);
+  console.log(`   Socket.dev Org: ${config.socketOrg}`);
   console.log(`   Repos Path: ${config.reposBasePath}`);
   console.log(`   Dry Run: ${config.dryRun ? "Yes" : "No"}`);
   console.log(`   Log Level: ${config.logLevel}`);

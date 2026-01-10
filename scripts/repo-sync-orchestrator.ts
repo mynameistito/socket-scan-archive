@@ -2,8 +2,9 @@
 
 import { GitOperations } from "./git/operations";
 import { GitHubClient } from "./github/client";
-import { SocketClient } from "./socket/client";
+import { SocketCLIClient } from "./socket/cli-client";
 import type {
+  DeletionRecord,
   GitHubRepository,
   OperationResult,
   StepResult,
@@ -24,9 +25,10 @@ import { createLogger } from "./utils/logger";
 class RepositorySyncOrchestrator {
   private logger = createLogger("info");
   private gitHub!: GitHubClient;
-  private socket!: SocketClient;
+  private socketCLI!: SocketCLIClient;
   private config!: ReturnType<typeof loadConfig>;
   private readonly startTime = new Date();
+  private deletionRecords: DeletionRecord[] = [];
 
   async run(): Promise<void> {
     try {
@@ -62,10 +64,9 @@ class RepositorySyncOrchestrator {
         this.logger
       );
 
-      this.logger.debug("Initializing Socket.dev client...");
-      this.socket = new SocketClient(
+      this.logger.debug("Initializing Socket CLI client...");
+      this.socketCLI = new SocketCLIClient(
         this.config.socketApiToken,
-        this.config.socketBaseUrl,
         this.logger
       );
 
@@ -77,12 +78,7 @@ class RepositorySyncOrchestrator {
         process.exit(1);
       }
 
-      const socketAuthOk = await this.socket.verifyAuth();
-      if (!socketAuthOk) {
-        this.logger.warn(
-          "Socket.dev authentication check failed (may not be critical)"
-        );
-      }
+      this.logger.debug("Socket CLI client initialized");
 
       // Verify organization exists
       const orgOk = await this.gitHub.verifyOrganization();
@@ -162,8 +158,7 @@ class RepositorySyncOrchestrator {
       await this.executeFileStep(tempPath, steps);
       await this.executeStageStep(tempPath, steps);
       await this.executeCommitStep(tempPath, steps);
-      const scansCount = await this.executeListScansStep(repo, steps);
-      await this.executeDeleteScansStep(repo, scansCount, steps);
+      await this.executeDeleteRepositoryStep(repo, steps);
       await this.executePushStep(tempPath, steps);
 
       return {
@@ -328,63 +323,66 @@ class RepositorySyncOrchestrator {
     }
   }
 
-  private async executeListScansStep(
+  private async executeDeleteRepositoryStep(
     repo: GitHubRepository,
-    steps: StepResult[]
-  ): Promise<number> {
-    const listScansStart = Date.now();
-    this.logger.startStep("List Socket.dev scans");
-    let scansCount = 0;
-    try {
-      const scans = await this.socket.listScans(repo.name);
-      scansCount = scans.length;
-      this.logger.endStep(true, `Found ${scansCount} scans`);
-      steps.push({
-        name: "List Scans",
-        success: true,
-        message: `Found ${scansCount} scans`,
-        duration: Date.now() - listScansStart,
-      });
-    } catch (error) {
-      this.logger.endStep(false, "List scans failed");
-      this.logger.warn("Continuing despite scan listing failure");
-      steps.push({
-        name: "List Scans",
-        success: false,
-        message: error instanceof Error ? error.message : String(error),
-        duration: Date.now() - listScansStart,
-      });
-    }
-    return scansCount;
-  }
-
-  private async executeDeleteScansStep(
-    repo: GitHubRepository,
-    scansCount: number,
     steps: StepResult[]
   ): Promise<void> {
-    const deleteScansStart = Date.now();
-    this.logger.startStep("Delete Socket.dev scans");
-    let deletedCount = 0;
+    const deleteStart = Date.now();
+    this.logger.startStep("Delete Socket.dev repository");
     try {
-      if (scansCount > 0) {
-        deletedCount = await this.socket.deleteAllScans(repo.name);
+      const result = await this.socketCLI.deleteRepository(
+        this.config.socketOrg,
+        repo.name,
+        this.config.dryRun
+      );
+
+      const stepName = "Delete Repository";
+      if (result.success) {
+        this.logger.endStep(true, result.message);
+        steps.push({
+          name: stepName,
+          success: true,
+          message: result.message,
+          duration: Date.now() - deleteStart,
+        });
+        this.deletionRecords.push({
+          repoName: repo.name,
+          success: true,
+          message: result.message,
+        });
+      } else {
+        this.logger.endStep(false, result.message);
+        this.logger.warn(
+          "Continuing despite repository deletion failure (non-blocking)"
+        );
+        steps.push({
+          name: stepName,
+          success: false,
+          message: result.message,
+          duration: Date.now() - deleteStart,
+        });
+        this.deletionRecords.push({
+          repoName: repo.name,
+          success: false,
+          message: result.message,
+        });
       }
-      this.logger.endStep(true, `Deleted ${deletedCount} scans`);
-      steps.push({
-        name: "Delete Scans",
-        success: true,
-        message: `Deleted ${deletedCount} scans`,
-        duration: Date.now() - deleteScansStart,
-      });
     } catch (error) {
-      this.logger.endStep(false, "Delete scans failed");
-      this.logger.warn("Continuing despite scan deletion failure");
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.endStep(false, `Exception during deletion: ${message}`);
+      this.logger.warn(
+        "Continuing despite repository deletion failure (non-blocking)"
+      );
       steps.push({
-        name: "Delete Scans",
+        name: "Delete Repository",
         success: false,
-        message: error instanceof Error ? error.message : String(error),
-        duration: Date.now() - deleteScansStart,
+        message: `Exception: ${message}`,
+        duration: Date.now() - deleteStart,
+      });
+      this.deletionRecords.push({
+        repoName: repo.name,
+        success: false,
+        message: `Exception: ${message}`,
       });
     }
   }
@@ -464,7 +462,29 @@ class RepositorySyncOrchestrator {
       }
     }
 
+    // Print deletion summary
+    this.logDeletionSummary();
+
     console.log("\n");
+  }
+
+  private logDeletionSummary(): void {
+    if (this.deletionRecords.length === 0) {
+      return;
+    }
+
+    const successful = this.deletionRecords.filter((r) => r.success).length;
+    const failed = this.deletionRecords.length - successful;
+
+    console.log("\n📋 Repository Deletion Summary:");
+    console.log(`  ✅ Successfully deleted: ${successful}`);
+    if (failed > 0) {
+      console.log(`  ⚠️  Failed to delete: ${failed}`);
+
+      for (const record of this.deletionRecords.filter((r) => !r.success)) {
+        console.log(`     - ${record.repoName}: ${record.message}`);
+      }
+    }
   }
 }
 

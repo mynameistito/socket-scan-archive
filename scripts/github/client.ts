@@ -164,4 +164,60 @@ export class GitHubClient {
       return false;
     }
   }
+
+  /**
+   * Unarchive a repository
+   * Required scope: admin:repo_hook or fine-grained "Administration" write
+   */
+  async unarchiveRepository(repoName: string): Promise<boolean> {
+    try {
+      this.logger.debug(`Unarchiving repository: ${repoName}`);
+      await this.octokit.rest.repos.update({
+        owner: this.org,
+        repo: repoName,
+        archived: false,
+      });
+      this.logger.debug(`Repository unarchived: ${repoName}`);
+      return true;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      if (err.message.includes("403") || err.message.includes("Forbidden")) {
+        this.logger.error(
+          `Permission denied unarchiving ${repoName}. Ensure GitHub token has admin:repo_hook scope or fine-grained "Administration" write permission`,
+          err
+        );
+      } else {
+        this.logger.error(`Failed to unarchive repository ${repoName}`, err);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Rearchive a repository
+   * Required scope: admin:repo_hook or fine-grained "Administration" write
+   */
+  async rearchiveRepository(repoName: string): Promise<boolean> {
+    try {
+      this.logger.debug(`Rearchiving repository: ${repoName}`);
+      await this.octokit.rest.repos.update({
+        owner: this.org,
+        repo: repoName,
+        archived: true,
+      });
+      this.logger.debug(`Repository rearchived: ${repoName}`);
+      return true;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      if (err.message.includes("403") || err.message.includes("Forbidden")) {
+        this.logger.error(
+          `Permission denied rearchiving ${repoName}. Ensure GitHub token has admin:repo_hook scope`,
+          err
+        );
+      } else {
+        this.logger.error(`Failed to rearchive repository ${repoName}`, err);
+      }
+      return false;
+    }
+  }
 }

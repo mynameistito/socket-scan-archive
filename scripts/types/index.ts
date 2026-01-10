@@ -43,6 +43,7 @@ export interface ScriptConfig {
   githubToken: string;
   socketApiToken: string;
   githubOrg: string;
+  socketOrg: string;
   reposBasePath: string;
   dryRun: boolean;
   socketBaseUrl: string;
@@ -98,4 +99,13 @@ export interface LogEntry {
   timestamp: Date;
   metadata?: Record<string, unknown>;
   error?: Error;
+}
+
+/**
+ * Deletion tracking record
+ */
+export interface DeletionRecord {
+  repoName: string;
+  success: boolean;
+  message: string;
 }

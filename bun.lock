@@ -6,6 +6,7 @@
       "name": "@kzg/socket-scan",
       "dependencies": {
         "@octokit/rest": "^21.0.0",
+        "@socketsecurity/cli": "^2.1.0",
         "axios": "^1.6.8",
         "dotenv": "^16.4.5",
       },
@@ -83,6 +84,8 @@
     "@oxlint/win32-arm64": ["@oxlint/win32-arm64@1.38.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-OvUVYdI68OwXh3d1RjH9N/okCxb6PrOGtEtzXyqGA7Gk+IxyZcX0/QCTBwV8FNbSSzDePSSEHOKpoIB+VXdtvg=="],
 
     "@oxlint/win32-x64": ["@oxlint/win32-x64@1.38.0", "", { "os": "win32", "cpu": "x64" }, "sha512-7IuZMYiZiOcgg5zHvpJY6jRlEwh8EB/uq7GsoQJO9hANq96TIjyntGByhIjFSsL4asyZmhTEki+MO/u5Fb/WQA=="],
+
+    "@socketsecurity/cli": ["@socketsecurity/cli@2.1.0", "", { "bin": { "socket": "dist/index.js", "socket-npm": "dist/index.js", "socket-npx": "dist/index.js", "socket-pnpm": "dist/index.js", "socket-yarn": "dist/index.js" } }, "sha512-tuaPbtKpkCprQDkPDpu7LibVg4fm8zdK87dUaN7aeC3lVxx674qDQ2FkIt0aDxLWdOs3wrw+/DoOuKGr8tu/+g=="],
 
     "@trpc/server": ["@trpc/server@11.8.1", "", { "peerDependencies": { "typescript": ">=5.7.2" } }, "sha512-P4rzZRpEL7zDFgjxK65IdyH0e41FMFfTkQkuq0BA5tKcr7E6v9/v38DEklCpoDN6sPiB1Sigy/PUEzHENhswDA=="],
 

@@ -118,8 +118,9 @@ export async function ensureDirectory(dirPath: string): Promise<void> {
   try {
     const dir = Bun.file(dirPath);
     if (!(await dir.exists())) {
-      const proc = Bun.spawn(["mkdir", "-p", dirPath]);
-      await proc.exited;
+      // Use the native mkdir API available in Bun
+      const { mkdir } = await import("node:fs/promises");
+      await mkdir(dirPath, { recursive: true });
     }
   } catch (error) {
     console.error(`Failed to create directory ${dirPath}:`, error);
@@ -134,8 +135,9 @@ export async function removeDirectory(dirPath: string): Promise<void> {
   try {
     const dir = Bun.file(dirPath);
     if (await dir.exists()) {
-      const proc = Bun.spawn(["rm", "-rf", dirPath]);
-      await proc.exited;
+      // Use the native rm API available in Bun
+      const { rm } = await import("node:fs/promises");
+      await rm(dirPath, { recursive: true, force: true });
     }
   } catch (error) {
     console.error(`Failed to remove directory ${dirPath}:`, error);

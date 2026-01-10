@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^21.0.0",
+    "@socketsecurity/cli": "^2.1.0",
     "axios": "^1.6.8",
     "dotenv": "^16.4.5"
   },

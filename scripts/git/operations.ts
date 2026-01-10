@@ -1,5 +1,9 @@
 import { CONSTANTS } from "../utils/constants";
-import { calculateBackoffDelay, sleep } from "../utils/helpers";
+import {
+  calculateBackoffDelay,
+  removeDirectory,
+  sleep,
+} from "../utils/helpers";
 import type { Logger } from "../utils/logger";
 
 export class GitOperations {
@@ -15,6 +19,7 @@ export class GitOperations {
 
   /**
    * Clone a repository to the target path
+   * Automatically removes existing directory if it exists
    */
   async clone(url: string, targetPath: string): Promise<void> {
     if (this.dryRun) {
@@ -25,6 +30,20 @@ export class GitOperations {
     }
 
     this.logger.debug(`Cloning repository: ${url}`);
+
+    // Clean up existing directory to avoid "already exists" errors
+    try {
+      const dir = Bun.file(targetPath);
+      if (await dir.exists()) {
+        this.logger.debug(`Removing existing directory: ${targetPath}`);
+        await removeDirectory(targetPath);
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.warn(`Failed to clean existing directory: ${err.message}`);
+      // Continue anyway, git clone will fail with a clear error
+    }
+
     const command = ["git", "clone", url, targetPath];
 
     try {
