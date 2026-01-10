@@ -8,8 +8,8 @@ export function loadConfig(isDryRun: boolean): ScriptConfig {
 
   const githubToken = process.env.GITHUB_TOKEN?.trim();
   const socketApiToken = process.env.SOCKET_API_TOKEN?.trim();
-  const githubOrg = process.env.GITHUB_ORG?.trim() || "KillzoneGaming";
-  const socketOrg = process.env.SOCKET_ORG?.trim() || "KillzoneGaming";
+  const githubOrg = process.env.GITHUB_ORG?.trim();
+  const socketOrg = process.env.SOCKET_ORG?.trim();
   const reposBasePath = process.env.REPOS_BASE_PATH?.trim() || "./temp-repos";
   const socketBaseUrl =
     process.env.SOCKET_BASE_URL?.trim() || "https://api.socket.dev/v0";
@@ -22,20 +22,20 @@ export function loadConfig(isDryRun: boolean): ScriptConfig {
   validateConfig({
     githubToken: githubToken || "",
     socketApiToken: socketApiToken || "",
-    githubOrg,
-    socketOrg,
-    reposBasePath,
+    githubOrg: githubOrg || "",
+    socketOrg: socketOrg || "",
+    reposBasePath: reposBasePath || "",
     dryRun: isDryRun,
-    socketBaseUrl,
-    githubBaseUrl,
+    socketBaseUrl: socketBaseUrl || "",
+    githubBaseUrl: githubBaseUrl || "",
     logLevel,
   });
 
   return {
     githubToken: githubToken || "",
     socketApiToken: socketApiToken || "",
-    githubOrg,
-    socketOrg,
+    githubOrg: githubOrg || "",
+    socketOrg: socketOrg || "",
     reposBasePath,
     dryRun: isDryRun,
     socketBaseUrl,

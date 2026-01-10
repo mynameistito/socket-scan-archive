@@ -103,6 +103,22 @@ class RepositorySyncOrchestrator {
       // Ensure logs directory exists
       await ensureDirectory(CONSTANTS.LOG_DIRECTORY);
 
+      // Clean up any leftover temp repos from previous runs
+      this.logger.debug(
+        `Cleaning up any leftover temp repositories in ${this.config.reposBasePath}...`
+      );
+      try {
+        await removeDirectory(this.config.reposBasePath);
+        this.logger.debug(
+          `Successfully cleaned up ${this.config.reposBasePath}`
+        );
+      } catch (error) {
+        this.logger.debug(
+          `No previous temp directory to clean or cleanup failed (continuing): ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+      await ensureDirectory(this.config.reposBasePath);
+
       // Fetch archived repositories
       this.logger.info("Fetching archived repositories...");
       const archivedRepos = await this.gitHub.listArchivedRepositories();

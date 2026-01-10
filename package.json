@@ -15,8 +15,8 @@
   },
   "license": "UNLICENSED",
   "scripts": {
-    "start": "bun scripts/repo-sync-orchestrator.ts",
-    "start:dry": "bun scripts/repo-sync-orchestrator.ts --dry-run",
+    "start": "bun scripts/cleanup.ts && bun scripts/repo-sync-orchestrator.ts",
+    "start:dry": "bun scripts/cleanup.ts && bun scripts/repo-sync-orchestrator.ts --dry-run",
     "check-config": "bun scripts/repo-sync-orchestrator.ts --check-config",
     "fix": "ultracite fix",
     "lint": "ultracite check",

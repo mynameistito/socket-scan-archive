@@ -40,8 +40,10 @@ export class GitOperations {
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.warn(`Failed to clean existing directory: ${err.message}`);
-      // Continue anyway, git clone will fail with a clear error
+      this.logger.error(`Failed to clean existing directory: ${err.message}`);
+      throw new Error(
+        `Cannot proceed with clone - failed to remove existing directory: ${err.message}`
+      );
     }
 
     const command = ["git", "clone", url, targetPath];
