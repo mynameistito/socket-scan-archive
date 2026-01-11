@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { CONSTANTS } from "./constants";
 import { fileExists } from "./helpers";
 import type { Logger } from "./logger";
@@ -76,5 +77,31 @@ export async function verifySocketYml(
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error(`Failed to verify ${CONSTANTS.SOCKET_YML_FILENAME}`, err);
     return false;
+  }
+}
+
+/**
+ * Clear Socket CLI config to ensure clean authentication state
+ * Removes ~/.socket/config.json which may contain stale credentials
+ */
+export async function clearSocketConfig(logger: Logger): Promise<void> {
+  try {
+    const socketConfigPath = `${homedir()}/.socket/config.json`;
+    const configExists = await fileExists(socketConfigPath);
+
+    if (!configExists) {
+      logger.debug("Socket CLI config file not found, skipping cleanup");
+      return;
+    }
+
+    logger.debug("Clearing Socket CLI config file...");
+    await Bun.write(socketConfigPath, "");
+    logger.debug("✅ Socket CLI config cleared");
+  } catch (error) {
+    logger.warn(
+      `Failed to clear Socket CLI config (non-critical): ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 }

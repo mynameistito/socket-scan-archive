@@ -13,7 +13,11 @@ import type {
 } from "./types/index";
 import { loadConfig, logConfigSummary } from "./utils/config";
 import { CONSTANTS } from "./utils/constants";
-import { createSocketYml, verifySocketYml } from "./utils/file-operations";
+import {
+  clearSocketConfig,
+  createSocketYml,
+  verifySocketYml,
+} from "./utils/file-operations";
 import {
   ensureDirectory,
   formatDuration,
@@ -69,6 +73,7 @@ class RepositorySyncOrchestrator {
       this.logger.debug("Initializing Socket CLI client...");
       this.socketCLI = new SocketCLIClient(
         this.config.socketApiToken,
+        this.config.socketOrg,
         this.logger
       );
 
@@ -83,13 +88,28 @@ class RepositorySyncOrchestrator {
         process.exit(1);
       }
 
+      // Clear old Socket CLI config to ensure clean authentication
+      this.logger.debug("Clearing Socket CLI config...");
+      await clearSocketConfig(this.logger);
+
       // Login to Socket.dev
       this.logger.debug("Logging in to Socket.dev...");
       const socketLoginOk = await this.socketAuth.login(
-        this.config.socketApiToken
+        this.config.socketApiToken,
+        this.config.socketOrg
       );
       if (!socketLoginOk) {
         this.logger.error("Socket.dev login failed");
+        process.exit(1);
+      }
+
+      // Verify Socket.dev authentication
+      this.logger.debug("Verifying Socket.dev authentication...");
+      const socketAuthOk = await this.socketCLI.verifyAuthentication();
+      if (!socketAuthOk) {
+        this.logger.error(
+          "Socket.dev authentication verification failed. Please check your API token and organization."
+        );
         process.exit(1);
       }
 

@@ -17,7 +17,7 @@ export class SocketCLIAuth {
    * For non-interactive environments, just validates the token
    * For interactive environments, can login via CLI
    */
-  async login(apiToken?: string): Promise<boolean> {
+  async login(apiToken?: string, orgSlug?: string): Promise<boolean> {
     try {
       this.logger.info("Preparing Socket.dev authentication...");
 
@@ -42,8 +42,12 @@ export class SocketCLIAuth {
         return false;
       }
 
-      // Store token for later use in Socket CLI commands
-      process.env.SOCKET_API_TOKEN = tokenToUse;
+      // Set environment variables for Socket CLI
+      // Socket CLI expects SOCKET_CLI_API_TOKEN, not SOCKET_API_TOKEN
+      process.env.SOCKET_CLI_API_TOKEN = tokenToUse;
+      if (orgSlug) {
+        process.env.SOCKET_CLI_ORG_SLUG = orgSlug;
+      }
 
       // In non-interactive mode, just validate that we have a token
       // Socket CLI will use SOCKET_CLI_API_TOKEN environment variable
@@ -71,8 +75,9 @@ export class SocketCLIAuth {
 
       this.logger.info("Cleaning up Socket.dev authentication...");
 
-      // Clear the token from environment
-      process.env.SOCKET_API_TOKEN = "";
+      // Clear the tokens from environment
+      process.env.SOCKET_CLI_API_TOKEN = "";
+      process.env.SOCKET_CLI_ORG_SLUG = "";
       this.isAuthenticated = false;
 
       this.logger.success("✅ Successfully cleared Socket.dev authentication");

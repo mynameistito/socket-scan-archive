@@ -17,11 +17,63 @@ export interface SocketDeleteResult {
  */
 export class SocketCLIClient {
   private readonly apiToken: string;
+  private readonly orgSlug: string;
   private readonly logger: Logger;
 
-  constructor(apiToken: string, logger: Logger) {
+  constructor(apiToken: string, orgSlug: string, logger: Logger) {
     this.apiToken = apiToken;
+    this.orgSlug = orgSlug;
     this.logger = logger;
+  }
+
+  /**
+   * Mask sensitive token for logging
+   * Shows only first 3 and last 3 characters
+   */
+  private maskToken(token: string): string {
+    if (token.length <= 6) {
+      return "****";
+    }
+    return `${token.substring(0, 3)}****${token.substring(token.length - 3)}`;
+  }
+
+  /**
+   * Verify Socket.dev authentication by listing repositories
+   * Pre-flight check to catch auth issues early
+   */
+  async verifyAuthentication(): Promise<boolean> {
+    try {
+      this.logger.info("🔐 Verifying Socket.dev authentication...");
+      this.logger.debug(
+        `Auth check: org=${this.orgSlug}, token=${this.maskToken(
+          this.apiToken
+        )}`
+      );
+
+      const result = await this.executeSocketCommand([
+        "repository",
+        "list",
+        "--org",
+        this.orgSlug,
+      ]);
+
+      if (result.exitCode === 0) {
+        this.logger.success("✅ Socket.dev authentication verified");
+        return true;
+      }
+
+      const fullErrorOutput = [result.stderr, result.stdout]
+        .filter((s) => s && s.length > 0)
+        .join("\n");
+
+      this.logger.error(`❌ Authentication failed: ${fullErrorOutput}`);
+      return false;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error(`❌ Authentication error: ${message}`);
+      return false;
+    }
   }
 
   /**
@@ -116,7 +168,7 @@ export class SocketCLIClient {
   }
 
   /**
-   * Execute Socket CLI command
+   * Execute Socket CLI command with proper authentication
    * @private
    */
   private executeSocketCommand(args: string[]): Promise<{
@@ -129,7 +181,8 @@ export class SocketCLIClient {
         const proc = Bun.spawn(["socket", ...args], {
           env: {
             ...process.env,
-            SOCKET_API_TOKEN: this.apiToken,
+            SOCKET_CLI_API_TOKEN: this.apiToken,
+            SOCKET_CLI_ORG_SLUG: this.orgSlug,
           },
           stdout: "pipe",
           stderr: "pipe",
@@ -158,7 +211,9 @@ export class SocketCLIClient {
           });
       } catch (error) {
         this.logger.error(
-          `Failed to spawn Socket CLI process: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to spawn Socket CLI process: ${
+            error instanceof Error ? error.message : String(error)
+          }`
         );
         resolve({
           exitCode: 1,
